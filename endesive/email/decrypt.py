@@ -1,6 +1,7 @@
 # *-* coding: utf-8 *-*
+import email
 import sys
-from email import message_from_string
+from email.message import Message
 
 from asn1crypto import cms
 from cryptography.hazmat.backends import default_backend
@@ -11,16 +12,16 @@ from cryptography.hazmat.primitives.asymmetric import padding
 
 class DecryptedData(object):
 
-    def decrypt(self, data, key):
-        msg = message_from_string(data)
+    @staticmethod
+    def decrypt(msg: Message, key):
         data = None
         for part in msg.walk():
             # multipart/* are just containers
             if part.get_content_maintype() == 'multipart':
                 continue
             if part.get_content_type() not in (
-                'application/x-pkcs7-mime',
-                'application/pkcs7-mime',
+                    'application/x-pkcs7-mime',
+                    'application/pkcs7-mime',
             ):
                 continue
             data = part.get_payload(decode=True)
@@ -55,9 +56,9 @@ class DecryptedData(object):
         algorithm, mode = algo.split('_', 1)
         algorithm = algorithm.upper()
         if algorithm in (
-            'AES128',
-            'AES192',
-            'AES256',
+                'AES128',
+                'AES192',
+                'AES256',
         ):
             cipher = Cipher(
                 algorithms.AES(udata),
@@ -77,7 +78,7 @@ class DecryptedData(object):
 
         decryptor = cipher.decryptor()
         udata = decryptor.update(edata) + decryptor.finalize()
-        #if keyalgo['algorithm'] != 'rsaes_oaep':
+        # if keyalgo['algorithm'] != 'rsaes_oaep':
         nb = ord(udata[-1]) if sys.version[0] < '3' else udata[-1]
         udata = udata[:-nb]
         return udata
@@ -85,4 +86,9 @@ class DecryptedData(object):
 
 def decrypt(data, key):
     cls = DecryptedData()
-    return cls.decrypt(data, key)
+    return cls.decrypt(email.message_from_string(data), key)
+
+
+def decrypt_message(msg: Message, key):
+    cls = DecryptedData()
+    return cls.decrypt(msg, key)
